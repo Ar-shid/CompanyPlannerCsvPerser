@@ -129,6 +129,7 @@ public sealed class FensterHtmlParser : IHtmlParser
         }
 
         record.StartDate = detail.BaseStartWeek;
+        record.FirstOrderDate = detail.BaseStartWeek;
         record.StartTime = detail.FixedTimeOfDay;
         record.SubscriptionNote = detail.AddressComment;
         record.CustomerNote = detail.AddressComment;
