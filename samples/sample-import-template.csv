@@ -1,0 +1,8 @@
+TitleForJob,Name,Email,PhoneNumber,SubscriptionStreet,SubscriptionCity,OutsideJobWeeklyIntervals,OutsideJobPrice,InsideJobWeeklyIntervals,InsideJobPrice,ExterirorJobWeeklyIntervals,ExterirorJobPrice,StartDate,FirstOrderDate,StartTime,EstimatedTime,CustomerNote,SubscriptionNote,FirstVisitInside,FirstVisitOutside,FirstVisitExterior
+Window Cleaning,John Smith,john@example.com,1234567890,123 Main St,New York,2,50,1,40,1,30,2026-03-15,2026-03-25,9,120,Test customer note,Test subscription note,false,true,false
+House Cleaning,Sarah Johnson,sarah@example.com,9876543210,456 Oak Ave,Chicago,1,60,2,55,0,0,2026-03-16,2026-03-26,10,90,Test customer note,Test subscription note,false,true,false
+Office Cleaning,Michael Brown,michael@example.com,5551234567,789 Pine Rd,Los Angeles,3,80,2,70,1,60,2026-03-17,2026-03-27,8,180,Test customer note,Test subscription note,true,true,false
+Carpet Cleaning,Emily Davis,emily@example.com,4449871234,101 Maple St,Houston,,0,1,35,,0,2026-03-18,2026-03-28,11,75,Test customer note,Test subscription note,false,true,false
+Garden Cleaning,David Wilson,david@example.com,3332221111,202 Cedar Ln,Phoenix,1,25,,0,2,40,2026-03-19,2026-03-29,7,60,Test customer note,Test subscription note,false,true,false
+Pool Cleaning,Linda Taylor,linda@example.com,7778889999,303 Birch Blvd,Miami,2,45,1,30,1,20,2026-03-20,2026-03-30,12,110,Test customer note,Test subscription note,false,true,false
+Roof Cleaning,James Anderson,james@example.com,6665554444,404 Spruce St,Seattle,1,100,1,90,1,80,2026-03-21,2026-03-31,13,150,Test customer note,Test subscription note,false,true,false
