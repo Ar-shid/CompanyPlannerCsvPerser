@@ -7,7 +7,13 @@ public static class PlaywrightEnvironment
     public static void Configure()
     {
         var appDirectory = AppContext.BaseDirectory;
-        Environment.SetEnvironmentVariable("PLAYWRIGHT_DRIVER_SEARCH_PATH", appDirectory);
+        var playwrightAssembly = Path.Combine(appDirectory, "Microsoft.Playwright.dll");
+
+        // Single-file bundles need an explicit driver search path.
+        if (!File.Exists(playwrightAssembly))
+        {
+            Environment.SetEnvironmentVariable("PLAYWRIGHT_DRIVER_SEARCH_PATH", appDirectory);
+        }
     }
 
     public static bool IsDriverPresent()

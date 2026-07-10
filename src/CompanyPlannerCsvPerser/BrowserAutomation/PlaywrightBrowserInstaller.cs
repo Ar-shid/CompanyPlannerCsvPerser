@@ -43,9 +43,10 @@ public static class PlaywrightBrowserInstaller
 
         if (!PlaywrightEnvironment.IsDriverPresent())
         {
+            var expectedPath = PlaywrightEnvironment.GetNodeExecutablePath();
             throw new InvalidOperationException(
-                "Playwright driver files are missing. Unzip the full release folder and keep " +
-                "CompanyPlannerCsvExporter, appsettings.json, and the .playwright folder together.");
+                $"Playwright driver not found at '{expectedPath}'. " +
+                "Unzip the full release folder and keep all files together, including the .playwright folder.");
         }
 
         var exitCode = Microsoft.Playwright.Program.Main(["install", "chromium"]);
