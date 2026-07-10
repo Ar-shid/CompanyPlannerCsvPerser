@@ -6,7 +6,7 @@ public static class PlaywrightBrowserInstaller
 {
     public static async Task<IPlaywright> CreatePlaywrightAsync()
     {
-        PlaywrightEnvironment.Configure();
+        PlaywrightEnvironment.Prepare();
 
         try
         {
@@ -46,7 +46,7 @@ public static class PlaywrightBrowserInstaller
             var expectedPath = PlaywrightEnvironment.GetNodeExecutablePath();
             throw new InvalidOperationException(
                 $"Playwright driver not found at '{expectedPath}'. " +
-                "Unzip the full release folder and keep all files together, including the .playwright folder.");
+                "Ensure playwright-bundle/ exists next to the executable.");
         }
 
         var exitCode = Microsoft.Playwright.Program.Main(["install", "chromium"]);

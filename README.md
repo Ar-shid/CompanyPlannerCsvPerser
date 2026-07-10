@@ -199,6 +199,27 @@ If the site HTML changes, update selectors under the `Selectors` section in `app
 
 Review `exported-import.csv` and adjust mappings in `FensterHtmlParser.MapToExportRecord` or selectors as needed.
 
+## Test release package locally (before commit/release)
+
+Run the same packaging flow as GitHub Actions on your Mac:
+
+```bash
+./scripts/package-and-test.sh osx-arm64
+```
+
+This will:
+1. Publish a production build
+2. Create a zip and unzip it (simulates client download)
+3. Run `--validate-package` on the extracted app
+
+If it passes, the package is safe to release. The test output is written to `artifacts/package-test-osx-arm64/unzipped/`.
+
+You can also validate any unzipped client folder manually:
+
+```bash
+./CompanyPlannerCsvExporter --validate-package
+```
+
 ## Troubleshooting
 
 - **Playwright browser missing:** run `playwright.sh install chromium` (macOS) or `playwright.ps1 install chromium` (Windows).

@@ -9,8 +9,8 @@ Do not move only the executable.
 Required files include:
 - CompanyPlannerCsvExporter (or CompanyPlannerCsvExporter.exe on Windows)
 - appsettings.json
-- .playwright/   (Playwright driver - must stay next to the executable)
-- Microsoft.Playwright.dll and other .dll files (Windows/macOS folder build)
+- playwright-bundle/   (required - app restores .playwright from this on first run)
+- Microsoft.Playwright.dll and other .dll files
 
 Windows
 -------
@@ -65,7 +65,6 @@ macOS:   ./CompanyPlannerCsvExporter --install-browsers
 Troubleshooting
 ---------------
 "Driver not found":
-  Unzip the full release zip again. Run the app from inside the unzipped folder.
-  Verify this file exists:
-  macOS: .playwright/node/darwin-arm64/node
-  Windows: .playwright\node\win32_x64\node.exe
+  Make sure playwright-bundle/ exists in the same folder as the executable.
+  The app recreates .playwright from playwright-bundle automatically on startup.
+  Re-download the full zip if playwright-bundle/ is missing.

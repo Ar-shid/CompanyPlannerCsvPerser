@@ -1,6 +1,7 @@
 bin/
 obj/
 output/
+artifacts/
 .vs/
 .idea/
 *.user

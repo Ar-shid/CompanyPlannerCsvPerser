@@ -21,10 +21,12 @@ jobs:
             rid: win-x64
             artifact_name: CompanyPlannerCsvExporter-Windows
             executable: CompanyPlannerCsvExporter.exe
+            node_path: publish/.playwright/node/win32_x64/node.exe
           - os: macos-latest
             rid: osx-arm64
             artifact_name: CompanyPlannerCsvExporter-macOS
             executable: CompanyPlannerCsvExporter
+            node_path: publish/.playwright/node/darwin-arm64/node
 
     steps:
       - name: Checkout
@@ -50,33 +52,38 @@ jobs:
           -p:DebugSymbols=false
           -o publish
 
-      - name: Verify Playwright driver
+      - name: Verify Playwright driver in publish output
         shell: bash
         run: |
-          if [ "${{ matrix.rid }}" = "osx-arm64" ]; then
-            NODE_PATH="publish/.playwright/node/darwin-arm64/node"
-          else
-            NODE_PATH="publish/.playwright/node/win32_x64/node.exe"
-          fi
-          if [ ! -f "$NODE_PATH" ]; then
-            echo "Playwright node driver missing at $NODE_PATH"
-            find publish/.playwright -type f | head -50
+          if [ ! -f "${{ matrix.node_path }}" ]; then
+            echo "Playwright node driver missing at ${{ matrix.node_path }}"
+            find publish/.playwright -type f | head -50 || true
             exit 1
           fi
-          echo "Found Playwright driver at $NODE_PATH"
+          echo "Found Playwright driver at ${{ matrix.node_path }}"
 
       - name: Prepare distribution folder
         shell: bash
         run: |
           mkdir -p dist
           cp -R publish/. dist/
+          cp -R publish/.playwright dist/playwright-bundle
           rm -f dist/*.pdb
           cp distribution/README-CLIENT.txt dist/README.txt
           if [ "${{ matrix.rid }}" = "osx-arm64" ]; then
             chmod +x "dist/${{ matrix.executable }}"
             chmod +x dist/.playwright/node/darwin-arm64/node
+            chmod +x dist/playwright-bundle/node/darwin-arm64/node
             codesign --force --deep --sign - "dist/${{ matrix.executable }}" || true
           fi
+
+      - name: Validate package contents
+        shell: bash
+        run: |
+          test -d dist/playwright-bundle
+          test -f "dist/${{ matrix.executable }}"
+          test -f dist/appsettings.json
+          "./dist/${{ matrix.executable }}" --validate-package
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
@@ -115,7 +122,7 @@ jobs:
         run: |
           cd release/macos
           chmod +x CompanyPlannerCsvExporter
-          chmod +x .playwright/node/darwin-arm64/node
+          chmod +x playwright-bundle/node/darwin-arm64/node
           zip -r ../CompanyPlannerCsvExporter-macOS.zip .
 
       - name: Create release

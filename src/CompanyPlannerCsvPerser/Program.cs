@@ -10,9 +10,27 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
 
+if (args.Contains("--validate-package", StringComparer.OrdinalIgnoreCase))
+{
+    var validation = PlaywrightEnvironment.ValidatePackage();
+    if (validation.IsValid)
+    {
+        Console.WriteLine("Package validation passed.");
+        return 0;
+    }
+
+    Console.Error.WriteLine("Package validation failed:");
+    foreach (var error in validation.Errors)
+    {
+        Console.Error.WriteLine($" - {error}");
+    }
+
+    return 1;
+}
+
 if (args.Contains("--install-browsers", StringComparer.OrdinalIgnoreCase))
 {
-    PlaywrightEnvironment.Configure();
+    PlaywrightEnvironment.Prepare();
     PlaywrightBrowserInstaller.InstallPlaywrightAssets();
     return 0;
 }
