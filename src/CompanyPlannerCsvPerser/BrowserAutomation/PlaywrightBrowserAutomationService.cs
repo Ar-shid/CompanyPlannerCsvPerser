@@ -24,7 +24,7 @@ public sealed class PlaywrightBrowserAutomationService : IBrowserAutomationServi
 
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
-        _playwright = await Playwright.CreateAsync();
+        _playwright = await PlaywrightBrowserInstaller.CreatePlaywrightAsync();
         _browser = await PlaywrightBrowserInstaller.LaunchChromiumAsync(
             _playwright,
             new BrowserTypeLaunchOptions

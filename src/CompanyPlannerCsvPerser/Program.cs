@@ -12,7 +12,8 @@ using Serilog;
 
 if (args.Contains("--install-browsers", StringComparer.OrdinalIgnoreCase))
 {
-    PlaywrightBrowserInstaller.InstallChromium();
+    PlaywrightEnvironment.Configure();
+    PlaywrightBrowserInstaller.InstallPlaywrightAssets();
     return 0;
 }
 

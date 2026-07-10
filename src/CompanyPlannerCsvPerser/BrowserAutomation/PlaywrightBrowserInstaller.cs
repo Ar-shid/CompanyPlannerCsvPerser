@@ -4,6 +4,22 @@ namespace CompanyPlannerCsvPerser.BrowserAutomation;
 
 public static class PlaywrightBrowserInstaller
 {
+    public static async Task<IPlaywright> CreatePlaywrightAsync()
+    {
+        PlaywrightEnvironment.Configure();
+
+        try
+        {
+            return await Playwright.CreateAsync();
+        }
+        catch (PlaywrightException ex) when (IsDriverMissingError(ex))
+        {
+            InstallPlaywrightAssets();
+            PlaywrightEnvironment.Configure();
+            return await Playwright.CreateAsync();
+        }
+    }
+
     public static async Task<IBrowser> LaunchChromiumAsync(
         IPlaywright playwright,
         BrowserTypeLaunchOptions options)
@@ -14,29 +30,40 @@ public static class PlaywrightBrowserInstaller
         }
         catch (PlaywrightException ex) when (IsMissingBrowserError(ex))
         {
-            InstallChromium();
+            InstallPlaywrightAssets();
             return await playwright.Chromium.LaunchAsync(options);
         }
     }
 
-    public static void InstallChromium()
+    public static void InstallPlaywrightAssets()
     {
         Console.WriteLine();
-        Console.WriteLine("Playwright Chromium is not installed for this app version.");
-        Console.WriteLine("Downloading browsers (one-time setup, ~250 MB)...");
+        Console.WriteLine("Setting up Playwright (one-time, may download ~250 MB)...");
         Console.WriteLine();
+
+        if (!PlaywrightEnvironment.IsDriverPresent())
+        {
+            throw new InvalidOperationException(
+                "Playwright driver files are missing. Unzip the full release folder and keep " +
+                "CompanyPlannerCsvExporter, appsettings.json, and the .playwright folder together.");
+        }
 
         var exitCode = Microsoft.Playwright.Program.Main(["install", "chromium"]);
         if (exitCode != 0)
         {
             throw new InvalidOperationException(
-                $"Playwright browser install failed with exit code {exitCode}. " +
-                "Run './install-playwright-browsers.sh' from the repository root.");
+                $"Playwright setup failed with exit code {exitCode}. " +
+                "Run './CompanyPlannerCsvExporter --install-browsers' from the unzipped folder.");
         }
 
         Console.WriteLine();
-        Console.WriteLine("Playwright Chromium installed successfully.");
+        Console.WriteLine("Playwright setup completed successfully.");
         Console.WriteLine();
+    }
+
+    private static bool IsDriverMissingError(PlaywrightException ex)
+    {
+        return ex.Message.Contains("Driver not found", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsMissingBrowserError(PlaywrightException ex)

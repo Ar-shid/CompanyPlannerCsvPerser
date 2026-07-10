@@ -53,13 +53,32 @@ jobs:
           -p:DebugSymbols=false
           -o publish
 
+      - name: Bundle Playwright driver
+        shell: bash
+        run: |
+          DRIVER_SOURCE="src/CompanyPlannerCsvPerser/bin/Release/net8.0/${{ matrix.rid }}/.playwright"
+          cp -R "$DRIVER_SOURCE" publish/.playwright
+          cp "src/CompanyPlannerCsvPerser/bin/Release/net8.0/${{ matrix.rid }}/playwright.ps1" publish/ 2>/dev/null || true
+          if [ "${{ matrix.rid }}" = "win-x64" ]; then
+            cp "src/CompanyPlannerCsvPerser/bin/Release/net8.0/${{ matrix.rid }}/playwright.cmd" publish/ 2>/dev/null || true
+          fi
+
       - name: Prepare distribution folder
         shell: bash
         run: |
           mkdir -p dist
           cp "publish/${{ matrix.executable }}" "dist/${{ matrix.executable }}"
           cp publish/appsettings.json dist/appsettings.json
+          cp -R publish/.playwright dist/.playwright
+          cp publish/playwright.ps1 dist/ 2>/dev/null || true
+          if [ -f publish/playwright.cmd ]; then
+            cp publish/playwright.cmd dist/
+          fi
           cp distribution/README-CLIENT.txt dist/README.txt
+          if [ "${{ matrix.rid }}" = "osx-arm64" ]; then
+            chmod +x "dist/${{ matrix.executable }}"
+            codesign --force --deep --sign - "dist/${{ matrix.executable }}" || true
+          fi
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
