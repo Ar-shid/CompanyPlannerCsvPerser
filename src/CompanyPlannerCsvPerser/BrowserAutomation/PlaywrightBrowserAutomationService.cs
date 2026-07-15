@@ -57,6 +57,15 @@ public sealed class PlaywrightBrowserAutomationService : IBrowserAutomationServi
         });
     }
 
+    public async Task WaitForSelectorAsync(string selector, CancellationToken cancellationToken = default)
+    {
+        EnsurePageReady();
+        await _page!.WaitForSelectorAsync(selector, new PageWaitForSelectorOptions
+        {
+            State = WaitForSelectorState.Attached
+        });
+    }
+
     public async Task<string> GetPageContentAsync(CancellationToken cancellationToken = default)
     {
         EnsurePageReady();

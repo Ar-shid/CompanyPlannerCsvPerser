@@ -12,4 +12,5 @@ public sealed class BrowserOptions
     public bool WaitForManualLogin { get; set; } = true;
     public string ManualLoginPrompt { get; set; } =
         "Log in to the website, navigate to the subscription list page, then press ENTER to continue.";
+    public int MaxListPages { get; set; } = 500;
 }

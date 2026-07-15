@@ -65,6 +65,63 @@ public sealed class FensterHtmlParser : IHtmlParser
         return items;
     }
 
+    public string? ParseNextPageUrl(string html)
+    {
+        var document = _context.OpenAsync(req => req.Content(html)).GetAwaiter().GetResult();
+        var links = document.QuerySelectorAll(_selectors.ListPage.PaginationLinks);
+        var nextText = _selectors.ListPage.NextPageLinkText;
+
+        var candidates = links
+            .Select(link => new
+            {
+                Href = link.GetAttribute("href") ?? string.Empty,
+                Text = link.TextContent.Trim()
+            })
+            .Where(link =>
+                !string.IsNullOrWhiteSpace(link.Href) &&
+                !link.Href.TrimEnd().EndsWith('#') &&
+                link.Href.Contains("subscription_list", StringComparison.OrdinalIgnoreCase) &&
+                TryGetPageNumber(link.Href).HasValue)
+            .ToList();
+
+        if (candidates.Count == 0)
+        {
+            return null;
+        }
+
+        var nextLink = candidates.FirstOrDefault(link =>
+            link.Text.Contains(nextText, StringComparison.OrdinalIgnoreCase) ||
+            link.Text.Equals("next", StringComparison.OrdinalIgnoreCase));
+
+        if (nextLink is not null)
+        {
+            return NormalizeUrl(nextLink.Href);
+        }
+
+        var currentPage = GetCurrentPageNumber(document);
+        var sequential = candidates
+            .Select(link => new { link.Href, Page = TryGetPageNumber(link.Href)!.Value })
+            .Where(link => link.Page == currentPage + 1)
+            .Select(link => link.Href)
+            .FirstOrDefault();
+
+        return sequential is null ? null : NormalizeUrl(sequential);
+    }
+
+    private int GetCurrentPageNumber(IDocument document)
+    {
+        var disabledPages = document.QuerySelectorAll("nav ul.pagination li.page-item.disabled a.page-link");
+        foreach (var link in disabledPages)
+        {
+            if (int.TryParse(link.TextContent.Trim(), out var page) && page > 0)
+            {
+                return page;
+            }
+        }
+
+        return 1;
+    }
+
     public ParsedSubscriptionDetail ParseDetailPage(string html)
     {
         var document = _context.OpenAsync(req => req.Content(html)).GetAwaiter().GetResult();
@@ -245,6 +302,17 @@ public sealed class FensterHtmlParser : IHtmlParser
     {
         var match = Regex.Match(href, @"subscription_edit/(\d+)", RegexOptions.IgnoreCase);
         return match.Success ? match.Groups[1].Value : string.Empty;
+    }
+
+    private static int? TryGetPageNumber(string href)
+    {
+        var match = Regex.Match(href, @"[?&]page=(\d+)", RegexOptions.IgnoreCase);
+        if (!match.Success)
+        {
+            return null;
+        }
+
+        return int.TryParse(match.Groups[1].Value, out var page) ? page : null;
     }
 
     private static string NormalizeUrl(string href)

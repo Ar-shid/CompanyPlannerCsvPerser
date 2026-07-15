@@ -29,6 +29,17 @@ public class FensterHtmlParserTests
     }
 
     [Fact]
+    public void ParseNextPageUrl_FindsPageTwoLink()
+    {
+        var listDocument = _mhtmlLoader.Load(GetSamplePath("subscription-list.mhtml"));
+        var nextPageUrl = _parser.ParseNextPageUrl(listDocument.Html);
+
+        Assert.NotNull(nextPageUrl);
+        Assert.Contains("page=2", nextPageUrl, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("subscription_list", nextPageUrl, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void ParseDetailPage_ExtractsTaskFields()
     {
         var detailDocument = _mhtmlLoader.Load(GetSamplePath("subscription-detail.mhtml"));

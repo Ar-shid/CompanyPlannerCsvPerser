@@ -13,6 +13,8 @@ public sealed class ListPageSelectors
     public string TableRows { get; set; } = "#subscription_list_table tbody tr";
     public string DetailLink { get; set; } = "a[href*='subscription_edit']";
     public int CustomerColumnIndex { get; set; } = 1;
+    public string PaginationLinks { get; set; } = "nav ul.pagination li.page-item:not(.disabled) a.page-link";
+    public string NextPageLinkText { get; set; } = "næste";
 }
 
 public sealed class DetailPageSelectors
