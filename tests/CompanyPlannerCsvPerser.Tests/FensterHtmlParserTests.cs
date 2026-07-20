@@ -29,14 +29,24 @@ public class FensterHtmlParserTests
     }
 
     [Fact]
-    public void ParseNextPageUrl_FindsPageTwoLink()
+    public void ParseNextPageUrl_FindsNaesteLinkFromSample()
     {
         var listDocument = _mhtmlLoader.Load(GetSamplePath("subscription-list.mhtml"));
         var nextPageUrl = _parser.ParseNextPageUrl(listDocument.Html);
 
+        Assert.Equal("https://www.fenster.dk/subscription_list?page=2&q=", nextPageUrl);
+    }
+
+    [Fact]
+    public void ParseNextPageUrl_BuildsFallbackFromCurrentUrl()
+    {
+        var listDocument = _mhtmlLoader.Load(GetSamplePath("subscription-list.mhtml"));
+        var nextPageUrl = _parser.ParseNextPageUrl(
+            listDocument.Html,
+            "https://www.fenster.dk/subscription_list?q=");
+
         Assert.NotNull(nextPageUrl);
         Assert.Contains("page=2", nextPageUrl, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("subscription_list", nextPageUrl, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

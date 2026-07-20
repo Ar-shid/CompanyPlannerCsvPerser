@@ -72,6 +72,75 @@ public sealed class PlaywrightBrowserAutomationService : IBrowserAutomationServi
         return await _page!.ContentAsync();
     }
 
+    public Task<string> GetCurrentUrlAsync(CancellationToken cancellationToken = default)
+    {
+        EnsurePageReady();
+        return Task.FromResult(_page!.Url);
+    }
+
+    public async Task<bool> TryClickAsync(string selector, CancellationToken cancellationToken = default)
+    {
+        EnsurePageReady();
+        var locator = _page!.Locator(selector);
+        if (await locator.CountAsync() == 0)
+        {
+            return false;
+        }
+
+        await locator.First.ClickAsync();
+        return true;
+    }
+
+    public async Task<bool> TryClickByTextAsync(string selector, string text, CancellationToken cancellationToken = default)
+    {
+        EnsurePageReady();
+        var locator = _page!.Locator(selector).Filter(new LocatorFilterOptions
+        {
+            HasTextString = text
+        });
+
+        if (await locator.CountAsync() == 0)
+        {
+            return false;
+        }
+
+        await locator.First.ClickAsync();
+        return true;
+    }
+
+    public async Task<bool> TryClickExactTextAsync(string selector, string text, CancellationToken cancellationToken = default)
+    {
+        EnsurePageReady();
+        var locator = _page!.Locator(selector).Filter(new LocatorFilterOptions
+        {
+            HasTextRegex = new System.Text.RegularExpressions.Regex(
+                $"^{System.Text.RegularExpressions.Regex.Escape(text)}$",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant)
+        });
+
+        if (await locator.CountAsync() == 0)
+        {
+            return false;
+        }
+
+        await locator.First.ClickAsync();
+        return true;
+    }
+
+    public async Task<bool> TryClickLastAsync(string selector, CancellationToken cancellationToken = default)
+    {
+        EnsurePageReady();
+        var locator = _page!.Locator(selector);
+        var count = await locator.CountAsync();
+        if (count == 0)
+        {
+            return false;
+        }
+
+        await locator.Nth(count - 1).ClickAsync();
+        return true;
+    }
+
     public Task WaitForManualLoginAsync(string prompt, CancellationToken cancellationToken = default)
     {
         Console.WriteLine();

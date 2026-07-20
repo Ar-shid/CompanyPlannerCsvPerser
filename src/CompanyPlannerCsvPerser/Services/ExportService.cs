@@ -119,7 +119,7 @@ public sealed class ExportService : IExportService
             if (!string.IsNullOrWhiteSpace(nextPageUrl))
             {
                 _logger.LogWarning(
-                    "Local MHTML contains a next page link ({NextPageUrl}), but LocalMhtml mode only has one snapshot. Live mode will walk all pages.",
+                    "Local MHTML contains a next page link ({NextPageUrl}), but LocalMhtml mode only has one snapshot. Set Export:Mode to Live to walk all pages.",
                     nextPageUrl);
             }
 
@@ -139,6 +139,7 @@ public sealed class ExportService : IExportService
         }
 
         var allItems = new List<SubscriptionListItem>();
+        var seenIds = new HashSet<string>(StringComparer.Ordinal);
         var visitedPageUrls = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var pageNumber = 1;
         var maxPages = Math.Max(1, _browserOptions.MaxListPages);
@@ -149,29 +150,34 @@ public sealed class ExportService : IExportService
 
             await _browserAutomation.WaitForSelectorAsync(_selectorOptions.ListPage.TableRows, cancellationToken);
             var listHtml = await _browserAutomation.GetPageContentAsync(cancellationToken);
+            var currentUrl = await _browserAutomation.GetCurrentUrlAsync(cancellationToken);
+            visitedPageUrls.Add(NormalizePageKey(currentUrl));
+
             var pageItems = _htmlParser.ParseListPage(listHtml);
-            allItems.AddRange(pageItems);
+            var newItems = pageItems.Where(item => seenIds.Add(item.SubscriptionId)).ToList();
+            allItems.AddRange(newItems);
 
             _logger.LogInformation(
-                "List page {PageNumber}: found {Count} records (running total: {Total})",
+                "List page {PageNumber} ({Url}): {Count} rows, {NewCount} new (running total: {Total})",
                 pageNumber,
+                currentUrl,
                 pageItems.Count,
-                Deduplicate(allItems).Count);
+                newItems.Count,
+                allItems.Count);
 
-            var nextPageUrl = _htmlParser.ParseNextPageUrl(listHtml);
-            if (string.IsNullOrWhiteSpace(nextPageUrl))
+            if (pageNumber > 1 && newItems.Count == 0)
             {
+                _logger.LogInformation("No new records on page {PageNumber}. Stopping pagination.", pageNumber);
                 break;
             }
 
-            if (!visitedPageUrls.Add(nextPageUrl))
+            var moved = await TryGoToNextListPageAsync(listHtml, currentUrl, pageNumber, visitedPageUrls, cancellationToken);
+            if (!moved)
             {
-                _logger.LogWarning("Detected repeated pagination URL '{NextPageUrl}'. Stopping pagination.", nextPageUrl);
+                _logger.LogInformation("No further list pages found after page {PageNumber}.", pageNumber);
                 break;
             }
 
-            _logger.LogInformation("Navigating to list page {NextPage}: {Url}", pageNumber + 1, nextPageUrl);
-            await _browserAutomation.NavigateToAsync(nextPageUrl, cancellationToken);
             pageNumber++;
         }
 
@@ -182,7 +188,81 @@ public sealed class ExportService : IExportService
                 maxPages);
         }
 
-        return Deduplicate(allItems);
+        return allItems;
+    }
+
+    private async Task<bool> TryGoToNextListPageAsync(
+        string listHtml,
+        string currentUrl,
+        int currentPageNumber,
+        HashSet<string> visitedPageUrls,
+        CancellationToken cancellationToken)
+    {
+        var nextPageUrl = _htmlParser.ParseNextPageUrl(listHtml, currentUrl);
+        var nextText = _selectorOptions.ListPage.NextPageLinkText;
+        var nextSelector = _selectorOptions.ListPage.NextPageLink;
+
+        // Exact target from Fenster HTML:
+        // <nav class="mt-5" aria-label="Page navigation conatiner">
+        //   ...
+        //   <li class="page-item"><a class="page-link" href="...?page=2&q=">næste</a></li>
+        if (await _browserAutomation.TryClickExactTextAsync(nextSelector, nextText, cancellationToken))
+        {
+            _logger.LogInformation("Clicked pagination control '{NextText}' in Page navigation nav", nextText);
+            await WaitForListPageChangeAsync(currentUrl, cancellationToken);
+            return true;
+        }
+
+        // "næste" is always the last enabled ?page= link in that nav.
+        if (await _browserAutomation.TryClickLastAsync(nextSelector, cancellationToken))
+        {
+            _logger.LogInformation("Clicked last enabled pagination link with href containing page=");
+            await WaitForListPageChangeAsync(currentUrl, cancellationToken);
+            return true;
+        }
+
+        if (string.IsNullOrWhiteSpace(nextPageUrl))
+        {
+            _logger.LogWarning(
+                "Could not find the pagination 'næste' button (nav.mt-5 Page navigation). Parsed next URL was empty.");
+            return false;
+        }
+
+        var nextKey = NormalizePageKey(nextPageUrl);
+        if (!visitedPageUrls.Add(nextKey))
+        {
+            _logger.LogWarning("Next page URL already visited ({NextPageUrl}). Stopping pagination.", nextPageUrl);
+            return false;
+        }
+
+        _logger.LogInformation("Navigating to next list page via URL: {Url}", nextPageUrl);
+        await _browserAutomation.NavigateToAsync(nextPageUrl, cancellationToken);
+        await WaitForListPageChangeAsync(currentUrl, cancellationToken);
+        return true;
+    }
+
+    private async Task WaitForListPageChangeAsync(string previousUrl, CancellationToken cancellationToken)
+    {
+        await _browserAutomation.WaitForSelectorAsync(_selectorOptions.ListPage.TableRows, cancellationToken);
+
+        // Give the page a moment to update after click/navigation.
+        await Task.Delay(750, cancellationToken);
+
+        var currentUrl = await _browserAutomation.GetCurrentUrlAsync(cancellationToken);
+        if (!string.Equals(NormalizePageKey(previousUrl), NormalizePageKey(currentUrl), StringComparison.OrdinalIgnoreCase))
+        {
+            _logger.LogInformation("List page URL changed to {Url}", currentUrl);
+        }
+    }
+
+    private static string NormalizePageKey(string url)
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        {
+            return url.Trim().TrimEnd('/');
+        }
+
+        return $"{uri.Scheme}://{uri.Host}{uri.AbsolutePath}{uri.Query}".TrimEnd('/');
     }
 
     private static IReadOnlyList<SubscriptionListItem> Deduplicate(IEnumerable<SubscriptionListItem> items)

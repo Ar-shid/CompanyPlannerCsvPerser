@@ -68,19 +68,42 @@ public sealed class FensterHtmlParser : IHtmlParser
     public string? ParseNextPageUrl(string html)
     {
         var document = _context.OpenAsync(req => req.Content(html)).GetAwaiter().GetResult();
+        return ParseNextPageUrl(document);
+    }
+
+    public string? ParseNextPageUrl(string html, string currentUrl)
+    {
+        var document = _context.OpenAsync(req => req.Content(html)).GetAwaiter().GetResult();
+        return ParseNextPageUrl(document) ?? BuildNextPageUrl(currentUrl, GetCurrentPageNumber(document) + 1);
+    }
+
+    private string? ParseNextPageUrl(IDocument document)
+    {
         var links = document.QuerySelectorAll(_selectors.ListPage.PaginationLinks);
+        if (links.Length == 0)
+        {
+            // Fallback if aria-label selector misses.
+            links = document.QuerySelectorAll("nav.mt-5 ul.pagination a.page-link");
+        }
+
         var nextText = _selectors.ListPage.NextPageLinkText;
 
         var candidates = links
-            .Select(link => new
+            .Select(link =>
             {
-                Href = link.GetAttribute("href") ?? string.Empty,
-                Text = link.TextContent.Trim()
+                var parent = link.Closest("li");
+                var isDisabled = parent?.ClassList.Contains("disabled") == true;
+                return new
+                {
+                    Href = DecodeHref(link.GetAttribute("href")),
+                    Text = NormalizeWhitespace(link.TextContent),
+                    IsDisabled = isDisabled
+                };
             })
             .Where(link =>
+                !link.IsDisabled &&
                 !string.IsNullOrWhiteSpace(link.Href) &&
                 !link.Href.TrimEnd().EndsWith('#') &&
-                link.Href.Contains("subscription_list", StringComparison.OrdinalIgnoreCase) &&
                 TryGetPageNumber(link.Href).HasValue)
             .ToList();
 
@@ -89,9 +112,10 @@ public sealed class FensterHtmlParser : IHtmlParser
             return null;
         }
 
+        // Prefer the exact "næste" control from the Page navigation footer.
         var nextLink = candidates.FirstOrDefault(link =>
-            link.Text.Contains(nextText, StringComparison.OrdinalIgnoreCase) ||
-            link.Text.Equals("next", StringComparison.OrdinalIgnoreCase));
+            string.Equals(link.Text, nextText, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(link.Text, "naeste", StringComparison.OrdinalIgnoreCase));
 
         if (nextLink is not null)
         {
@@ -110,16 +134,95 @@ public sealed class FensterHtmlParser : IHtmlParser
 
     private int GetCurrentPageNumber(IDocument document)
     {
-        var disabledPages = document.QuerySelectorAll("nav ul.pagination li.page-item.disabled a.page-link");
-        foreach (var link in disabledPages)
+        var activeSelectors = new[]
         {
-            if (int.TryParse(link.TextContent.Trim(), out var page) && page > 0)
+            "nav.mt-5[aria-label*='Page navigation'] li.page-item.disabled a.page-link",
+            "nav[aria-label*='Page navigation'] li.page-item.disabled a.page-link",
+            "nav.mt-5 ul.pagination li.page-item.disabled a.page-link",
+            "nav.mt-5 ul.pagination li.page-item.active a.page-link"
+        };
+
+        foreach (var selector in activeSelectors)
+        {
+            foreach (var link in document.QuerySelectorAll(selector))
             {
-                return page;
+                if (int.TryParse(NormalizeWhitespace(link.TextContent), out var page) && page > 0)
+                {
+                    return page;
+                }
             }
         }
 
         return 1;
+    }
+
+    private static string? BuildNextPageUrl(string currentUrl, int nextPage)
+    {
+        if (string.IsNullOrWhiteSpace(currentUrl) || nextPage < 2)
+        {
+            return null;
+        }
+
+        if (!Uri.TryCreate(currentUrl, UriKind.Absolute, out var uri))
+        {
+            return $"https://www.fenster.dk/subscription_list?page={nextPage}";
+        }
+
+        if (!uri.AbsolutePath.Contains("subscription_list", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"https://www.fenster.dk/subscription_list?page={nextPage}";
+        }
+
+        var query = uri.Query.TrimStart('?');
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            return $"{uri.GetLeftPart(UriPartial.Path)}?page={nextPage}";
+        }
+
+        if (Regex.IsMatch(query, @"(^|&)page=\d+", RegexOptions.IgnoreCase))
+        {
+            query = Regex.Replace(query, @"(^|&)page=\d+", m =>
+            {
+                var prefix = m.Value.StartsWith('&') ? "&" : "";
+                return $"{prefix}page={nextPage}";
+            }, RegexOptions.IgnoreCase);
+        }
+        else
+        {
+            query = $"page={nextPage}&{query}";
+        }
+
+        return $"{uri.GetLeftPart(UriPartial.Path)}?{query}";
+    }
+
+    private static string DecodeHref(string? href)
+    {
+        if (string.IsNullOrWhiteSpace(href))
+        {
+            return string.Empty;
+        }
+
+        return System.Net.WebUtility.HtmlDecode(href).Trim();
+    }
+
+    private static string NormalizeWhitespace(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        return Regex.Replace(value, @"\s+", " ").Trim();
+    }
+
+    private static bool ContainsIgnoreCase(string source, string value)
+    {
+        if (string.IsNullOrWhiteSpace(source) || string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        return source.Contains(value, StringComparison.OrdinalIgnoreCase);
     }
 
     public ParsedSubscriptionDetail ParseDetailPage(string html)

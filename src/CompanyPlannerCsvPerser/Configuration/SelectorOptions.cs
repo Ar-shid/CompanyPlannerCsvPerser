@@ -13,7 +13,23 @@ public sealed class ListPageSelectors
     public string TableRows { get; set; } = "#subscription_list_table tbody tr";
     public string DetailLink { get; set; } = "a[href*='subscription_edit']";
     public int CustomerColumnIndex { get; set; } = 1;
-    public string PaginationLinks { get; set; } = "nav ul.pagination li.page-item:not(.disabled) a.page-link";
+
+    /// <summary>
+    /// Fenster pagination footer: nav.mt-5 aria-label="Page navigation conatiner"
+    /// </summary>
+    public string PaginationNav { get; set; } =
+        "nav.mt-5[aria-label*='Page navigation'], nav[aria-label*='Page navigation']";
+
+    public string PaginationLinks { get; set; } =
+        "nav.mt-5[aria-label*='Page navigation'] a.page-link, nav[aria-label*='Page navigation'] a.page-link";
+
+    /// <summary>
+    /// Enabled page links inside the pagination nav that point to ?page=N
+    /// (includes numbered pages and the "næste" link).
+    /// </summary>
+    public string NextPageLink { get; set; } =
+        "nav.mt-5[aria-label*='Page navigation'] ul.pagination li.page-item:not(.disabled) a.page-link[href*='page='], nav[aria-label*='Page navigation'] ul.pagination li.page-item:not(.disabled) a.page-link[href*='page=']";
+
     public string NextPageLinkText { get; set; } = "næste";
 }
 
