@@ -111,20 +111,34 @@ public sealed class PlaywrightBrowserAutomationService : IBrowserAutomationServi
     public async Task<bool> TryClickExactTextAsync(string selector, string text, CancellationToken cancellationToken = default)
     {
         EnsurePageReady();
-        var locator = _page!.Locator(selector).Filter(new LocatorFilterOptions
+
+        // Prefer Playwright exact text match (no RegexOptions — Playwright rejects CultureInvariant etc.).
+        var exactLocator = _page!.Locator(selector).GetByText(text, new LocatorGetByTextOptions
         {
-            HasTextRegex = new System.Text.RegularExpressions.Regex(
-                $"^{System.Text.RegularExpressions.Regex.Escape(text)}$",
-                System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant)
+            Exact = true
         });
 
-        if (await locator.CountAsync() == 0)
+        if (await exactLocator.CountAsync() > 0)
         {
-            return false;
+            await exactLocator.First.ClickAsync();
+            return true;
         }
 
-        await locator.First.ClickAsync();
-        return true;
+        // Case-insensitive fallback without Playwright regex flags.
+        var candidates = _page.Locator(selector);
+        var count = await candidates.CountAsync();
+        for (var i = 0; i < count; i++)
+        {
+            var candidate = candidates.Nth(i);
+            var candidateText = (await candidate.InnerTextAsync()).Trim();
+            if (string.Equals(candidateText, text, StringComparison.OrdinalIgnoreCase))
+            {
+                await candidate.ClickAsync();
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public async Task<bool> TryClickLastAsync(string selector, CancellationToken cancellationToken = default)
